@@ -51,7 +51,7 @@ def create_local_copy(cookie_file):
         raise BrowserCookieError('Can not find cookie file at: ' + cookie_file)
 
 
-def windows_group_policy_path():
+def windows_group_policy_path(profile=""):
     # we know that we're running under windows at this point so it's safe to do these imports
     from winreg import ConnectRegistry, HKEY_LOCAL_MACHINE, OpenKeyEx, QueryValueEx, REG_EXPAND_SZ, REG_SZ
     try:
@@ -64,13 +64,11 @@ def windows_group_policy_path():
             return None
     except OSError:
         return None
-    return os.path.join(user_data_dir, "Default", "Cookies")
+    return os.path.join(user_data_dir, profile, "Cookies")
 
 
 # Code adapted slightly from https://github.com/Arnie97/chrome-cookies
-def crypt_unprotect_data(
-        cipher_text=b'', entropy=b'', reserved=None, prompt_struct=None, is_key=False
-):
+def crypt_unprotect_data(cipher_text=b'', entropy=b'', reserved=None, prompt_struct=None, is_key=False):
     # we know that we're running under windows at this point so it's safe to try these imports
     import ctypes
     import ctypes.wintypes
@@ -157,7 +155,7 @@ def get_linux_pass(browser="Chrome"):
 
 
 class Chrome:
-    def __init__(self, cookie_file=None, domain_name=""):
+    def __init__(self, cookie_file=None, domain_name="", profile="Default"):
         self.salt = b'saltysalt'
         self.iv = b' ' * 16
         self.length = 16
@@ -210,10 +208,10 @@ class Chrome:
 
             # get cookie file from APPDATA
             # Note: in windows the \\ is required before a u to stop unicode errors
-            cookie_file = cookie_file or windows_group_policy_path() \
-                or glob.glob(os.path.join(os.getenv('APPDATA', ''), '..\Local\\Google\\Chrome\\User Data\\Default\\Cookies')) \
-                or glob.glob(os.path.join(os.getenv('LOCALAPPDATA', ''), 'Google\\Chrome\\User Data\\Default\\Cookies')) \
-                or glob.glob(os.path.join(os.getenv('APPDATA', ''), 'Google\\Chrome\\User Data\\Default\\Cookies'))
+            cookie_file = cookie_file or windows_group_policy_path(profile) \
+                or glob.glob(os.path.join(os.getenv('APPDATA', ''), '..\Local\\Google\\Chrome\\User Data\\' + profile + '\\Cookies')) \
+                or glob.glob(os.path.join(os.getenv('LOCALAPPDATA', ''), 'Google\\Chrome\\User Data\\' + profile + '\\Cookies')) \
+                or glob.glob(os.path.join(os.getenv('APPDATA', ''), 'Google\\Chrome\\User Data\\' + profile + '\\Cookies'))
         else:
             raise BrowserCookieError(
                 "OS not recognized. Works on Chrome for OSX, Windows, and Linux.")
@@ -458,11 +456,11 @@ def create_cookie(host, path, secure, expires, name, value):
                                  True, secure, expires, False, None, None, {})
 
 
-def chrome(cookie_file=None, domain_name=""):
+def chrome(cookie_file=None, domain_name="", profile=""):
     """Returns a cookiejar of the cookies used by Chrome. Optionally pass in a
     domain name to only load cookies from the specified domain
     """
-    return Chrome(cookie_file, domain_name).load()
+    return Chrome(cookie_file, domain_name, profile).load()
 
 
 def firefox(cookie_file=None, domain_name=""):
